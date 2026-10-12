@@ -1,4 +1,5 @@
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -31,8 +32,10 @@ from app.services.service_request_service import (
     list_requests,
     update_request,
 )
+from app.tasks.notifications import notify_request_created
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def raise_service_error(exc: Exception) -> None:
@@ -61,9 +64,23 @@ def post_request(
     db: Annotated[Session, Depends(get_db)],
 ) -> ServiceRequestResponse:
     try:
-        return create_request(db, current_user, data)
+        request = create_request(db, current_user, data)
     except CategoryUnavailableError as exc:
         raise_service_error(exc)
+
+    try:
+        notify_request_created.delay(
+            request_id=request.id,
+            citizen_id=request.citizen_id,
+            title=request.title,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to enqueue notification for request_id=%s",
+            request.id,
+        )
+
+    return request
 
 
 @router.get("", response_model=ServiceRequestListResponse)

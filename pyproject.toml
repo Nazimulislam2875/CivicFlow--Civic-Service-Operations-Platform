@@ -18,6 +18,8 @@ dependencies = [
     "bcrypt==4.0.1",
     "email-validator",
     "PyJWT>=2.10,<3.0",
+    "redis>=5,<7",
+    "celery[redis]>=5.4,<6",
 ]
 
 [project.optional-dependencies]
