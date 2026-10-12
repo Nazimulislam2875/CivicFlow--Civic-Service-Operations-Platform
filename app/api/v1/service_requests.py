@@ -41,7 +41,7 @@ def raise_service_error(exc: Exception) -> None:
     elif isinstance(exc, RequestPermissionError):
         code = status.HTTP_403_FORBIDDEN
     elif isinstance(exc, CategoryUnavailableError | StaffUnavailableError):
-        code = status.HTTP_422_UNPROCESSABLE_ENTITY
+        code = status.HTTP_422_UNPROCESSABLE_CONTENT
     elif isinstance(exc, InvalidStatusTransitionError):
         code = status.HTTP_409_CONFLICT
     else:
