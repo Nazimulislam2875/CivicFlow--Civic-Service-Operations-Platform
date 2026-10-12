@@ -1,3 +1,4 @@
+
 from datetime import datetime
 from typing import ClassVar
 
@@ -16,11 +17,7 @@ class ServiceRequest(Base):
         "RESOLVED",
         "REJECTED",
     )
-    PRIORITIES: ClassVar[tuple[str, ...]] = (
-        "LOW",
-        "MEDIUM",
-        "HIGH",
-    )
+    PRIORITIES: ClassVar[tuple[str, ...]] = ("LOW", "MEDIUM", "HIGH")
 
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -43,6 +40,11 @@ class ServiceRequest(Base):
     citizen_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
+        index=True,
+    )
+    assigned_staff_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=True,
         index=True,
     )
     category_id: Mapped[int] = mapped_column(

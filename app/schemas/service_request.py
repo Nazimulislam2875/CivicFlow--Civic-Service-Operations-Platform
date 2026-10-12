@@ -1,3 +1,4 @@
+
 from datetime import datetime
 from typing import Literal
 
@@ -30,6 +31,7 @@ class ServiceRequestResponse(BaseModel):
     status: RequestStatus
     priority: RequestPriority
     citizen_id: int
+    assigned_staff_id: int | None = None
     category_id: int
     department_id: int | None
     location: str | None
@@ -44,3 +46,24 @@ class ServiceRequestListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class StaffAssignment(BaseModel):
+    staff_id: int = Field(gt=0)
+
+
+class RequestStatusUpdate(BaseModel):
+    status: RequestStatus
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class RequestStatusHistoryResponse(BaseModel):
+    id: int
+    request_id: int
+    changed_by_id: int
+    old_status: str | None
+    new_status: RequestStatus
+    note: str | None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
