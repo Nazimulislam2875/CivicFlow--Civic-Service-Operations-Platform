@@ -1,4 +1,3 @@
-
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -163,9 +162,7 @@ def test_citizen_cannot_view_another_citizens_request(client):
     request = create_request(test_client, category_id)
 
     set_user_role("CITIZEN", user_id=2)
-    response = test_client.get(
-        f"/api/v1/service-requests/{request['id']}"
-    )
+    response = test_client.get(f"/api/v1/service-requests/{request['id']}")
 
     assert response.status_code == 404
 
@@ -310,9 +307,7 @@ def test_request_status_history_is_recorded(client):
     )
     assert update.status_code == 200, update.text
 
-    history = test_client.get(
-        f"/api/v1/service-requests/{request['id']}/history"
-    )
+    history = test_client.get(f"/api/v1/service-requests/{request['id']}/history")
 
     assert history.status_code == 200, history.text
     entries = history.json()
@@ -322,3 +317,107 @@ def test_request_status_history_is_recorded(client):
     assert entries[1]["old_status"] == "SUBMITTED"
     assert entries[1]["new_status"] == "IN_PROGRESS"
     assert entries[1]["note"] == "Work started"
+
+
+def test_service_request_list_uses_cached_response(client, monkeypatch):
+    from app.api.v1 import service_requests as service_requests_api
+
+    test_client, _ = client
+    category_id = create_category(test_client)
+    create_request(test_client, category_id)
+
+    cache_store = {}
+    monkeypatch.setattr(
+        service_requests_api,
+        "get_cached_json",
+        lambda key: cache_store.get(key),
+    )
+    monkeypatch.setattr(
+        service_requests_api,
+        "set_cached_json",
+        lambda key, value: cache_store.__setitem__(key, value),
+    )
+
+    first_response = test_client.get("/api/v1/service-requests")
+    assert first_response.status_code == 200, first_response.text
+    assert first_response.json()["total"] == 1
+    assert len(cache_store) == 1
+
+    def fail_if_database_is_queried(*args, **kwargs):
+        raise AssertionError("Database query ran despite a cache hit")
+
+    monkeypatch.setattr(
+        service_requests_api,
+        "list_requests",
+        fail_if_database_is_queried,
+    )
+
+    second_response = test_client.get("/api/v1/service-requests")
+    assert second_response.status_code == 200, second_response.text
+    assert second_response.json() == first_response.json()
+
+
+def test_service_request_list_cache_is_user_scoped(client, monkeypatch):
+    from app.api.v1 import service_requests as service_requests_api
+
+    test_client, _ = client
+    cache_store = {}
+
+    monkeypatch.setattr(
+        service_requests_api,
+        "get_cached_json",
+        lambda key: cache_store.get(key),
+    )
+    monkeypatch.setattr(
+        service_requests_api,
+        "set_cached_json",
+        lambda key, value: cache_store.__setitem__(key, value),
+    )
+    monkeypatch.setattr(
+        service_requests_api,
+        "invalidate_service_request_lists",
+        lambda: None,
+    )
+
+    category_id = create_category(test_client)
+    create_request(test_client, category_id)
+
+    set_user_role("CITIZEN", user_id=1)
+    first_response = test_client.get("/api/v1/service-requests")
+    assert first_response.status_code == 200, first_response.text
+    assert first_response.json()["total"] == 1
+
+    set_user_role("CITIZEN", user_id=2)
+    second_response = test_client.get("/api/v1/service-requests")
+    assert second_response.status_code == 200, second_response.text
+    assert second_response.json()["total"] == 0
+
+    assert len(cache_store) == 2
+
+
+def test_creating_service_request_invalidates_list_cache(client, monkeypatch):
+    from app.api.v1 import service_requests as service_requests_api
+
+    test_client, _ = client
+    invalidation_calls = []
+
+    monkeypatch.setattr(
+        service_requests_api,
+        "invalidate_service_request_lists",
+        lambda: invalidation_calls.append(True),
+    )
+
+    category_id = create_category(test_client)
+    response = test_client.post(
+        "/api/v1/service-requests",
+        json={
+            "title": "Repair damaged road",
+            "description": "There is a pothole on the main road.",
+            "category_id": category_id,
+            "priority": "HIGH",
+            "location": "Main Road",
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    assert invalidation_calls == [True]

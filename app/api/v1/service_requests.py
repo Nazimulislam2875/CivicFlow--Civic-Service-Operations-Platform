@@ -1,4 +1,5 @@
-
+import hashlib
+import json
 import logging
 from typing import Annotated
 
@@ -6,6 +7,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentUser
+from app.core.cache import (
+    SERVICE_REQUEST_LIST_PREFIX,
+    get_cached_json,
+    invalidate_service_request_lists,
+    set_cached_json,
+)
 from app.db.session import get_db
 from app.schemas.service_request import (
     RequestPriority,
@@ -68,6 +75,8 @@ def post_request(
     except CategoryUnavailableError as exc:
         raise_service_error(exc)
 
+    invalidate_service_request_lists()
+
     try:
         notify_request_created.delay(
             request_id=request.id,
@@ -89,12 +98,33 @@ def get_requests(
     db: Annotated[Session, Depends(get_db)],
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 10,
-    request_status: Annotated[
-        RequestStatus | None, Query(alias="status")
-    ] = None,
+    request_status: Annotated[RequestStatus | None, Query(alias="status")] = None,
     priority: RequestPriority | None = None,
     category_id: Annotated[int | None, Query(gt=0)] = None,
 ) -> ServiceRequestListResponse:
+    cache_identity = {
+        "user_id": current_user.id,
+        "role": current_user.role,
+        "page": page,
+        "page_size": page_size,
+        "status": request_status,
+        "priority": priority,
+        "category_id": category_id,
+    }
+    cache_digest = hashlib.sha256(
+        json.dumps(
+            cache_identity,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        ).encode()
+    ).hexdigest()
+    cache_key = f"{SERVICE_REQUEST_LIST_PREFIX}{cache_digest}"
+
+    cached_data = get_cached_json(cache_key)
+    if cached_data is not None:
+        return ServiceRequestListResponse.model_validate(cached_data)
+
     items, total = list_requests(
         db=db,
         user=current_user,
@@ -104,12 +134,14 @@ def get_requests(
         priority_filter=priority,
         category_id=category_id,
     )
-    return ServiceRequestListResponse(
+    response = ServiceRequestListResponse(
         items=items,
         total=total,
         page=page,
         page_size=page_size,
     )
+    set_cached_json(cache_key, response.model_dump(mode="json"))
+    return response
 
 
 @router.post(
@@ -123,7 +155,9 @@ def post_assignment(
     db: Annotated[Session, Depends(get_db)],
 ) -> ServiceRequestResponse:
     try:
-        return assign_staff(db, request_id, current_user, data.staff_id)
+        result = assign_staff(db, request_id, current_user, data.staff_id)
+        invalidate_service_request_lists()
+        return result
     except (
         RequestNotFoundError,
         RequestPermissionError,
@@ -144,7 +178,9 @@ def patch_request_status(
     db: Annotated[Session, Depends(get_db)],
 ) -> ServiceRequestResponse:
     try:
-        return change_request_status(db, request_id, current_user, data)
+        result = change_request_status(db, request_id, current_user, data)
+        invalidate_service_request_lists()
+        return result
     except (
         RequestNotFoundError,
         RequestPermissionError,
@@ -188,7 +224,9 @@ def patch_request(
     db: Annotated[Session, Depends(get_db)],
 ) -> ServiceRequestResponse:
     try:
-        return update_request(db, request_id, current_user, data)
+        result = update_request(db, request_id, current_user, data)
+        invalidate_service_request_lists()
+        return result
     except (
         RequestNotFoundError,
         RequestPermissionError,
