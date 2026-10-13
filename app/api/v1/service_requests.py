@@ -82,6 +82,7 @@ def post_request(
             request_id=request.id,
             citizen_id=request.citizen_id,
             title=request.title,
+            recipient_email=current_user.email,
         )
     except Exception:
         logger.exception(

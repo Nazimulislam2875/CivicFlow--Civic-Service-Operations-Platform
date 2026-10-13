@@ -66,6 +66,12 @@ services:
       DATABASE_URL: postgresql+psycopg://city_service:city_service_local_password@db:5432/city_service_db
       SECRET_KEY: ${SECRET_KEY:?Add SECRET_KEY to your .env file}
       REDIS_URL: redis://redis:6379/0
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
     depends_on:
       migrate:
         condition: service_completed_successfully

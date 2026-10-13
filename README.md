@@ -14,7 +14,10 @@ A backend application for managing city service requests, citizen complaints, st
 - Service request status history
 - PostgreSQL database integration
 - Database schema migrations with Alembic
-- Automated API and permission tests with Pytest
+- Redis caching for service request lists with cache invalidation
+- Celery background tasks for service request email notifications
+- Configurable SMTP delivery with retry handling
+- Automated API, permission, caching, and notification tests with Pytest
 
 ## Technology Stack
 
@@ -26,6 +29,10 @@ A backend application for managing city service requests, citizen complaints, st
 - **Validation and Configuration:** Pydantic, Pydantic Settings
 - **Authentication:** JWT, password hashing
 - **Testing:** Pytest, HTTPX
+- **Background Jobs:** Celery
+- **Cache and Broker:** Redis
+- **Infrastructure:** Docker Compose, Nginx
+- **Email:** SMTP
 - **Code Quality:** Ruff
 
 ## Project Structure
@@ -76,7 +83,9 @@ python -m pip install -e ".[dev]"
 
 ### 4. Configure environment variables
 
-Create a local `.env` file using `.env.example` as a template. Set the PostgreSQL connection URL and the required authentication settings according to `app/core/config.py`.
+Create a local `.env` file using `.env.example` as a template. Set the required database and authentication values. Redis and SMTP settings are also documented in `.env.example`.
+
+SMTP email notifications are optional. To enable them, configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, and `SMTP_USE_TLS` in `.env`. Use credentials provided by your SMTP service; for Gmail, use an app password when required rather than your regular account password. Keep these values private. Without SMTP host and sender configuration, notifications are skipped.
 
 Never commit `.env` or production secrets to version control.
 
