@@ -32,3 +32,6 @@ coverage.xml/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Local SeaweedFS S3 credentials
+/docker/seaweedfs/s3.json

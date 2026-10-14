@@ -17,6 +17,19 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: str | None = None
     SMTP_USE_TLS: bool = True
 
+    S3_ENDPOINT_URL: str = "http://localhost:9000"
+    S3_BUCKET_NAME: str = "city-service-attachments"
+    S3_ACCESS_KEY_ID: str = "cityservice-dev"
+    S3_SECRET_ACCESS_KEY: str = "cityservice-dev-secret"
+    S3_REGION: str = "us-east-1"
+    S3_PRESIGNED_URL_EXPIRES_SECONDS: int = Field(
+        default=300,
+        gt=0,
+    )
+
+
+    MAX_ATTACHMENT_SIZE_BYTES: int = Field(default=10 * 1024 * 1024, gt=0)
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

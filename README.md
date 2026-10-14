@@ -1,6 +1,6 @@
-# City Service Management Platform
+# CivicFlow — Civic Service Operations Platform
 
-A backend application for managing city service requests, citizen complaints, staff assignments, and request status tracking. Built with FastAPI, SQLAlchemy, PostgreSQL, and Alembic.
+CivicFlow is a modular FastAPI backend for managing citizen service requests, staff assignments, service workflows, and request status tracking. Built with FastAPI, SQLAlchemy, PostgreSQL, Redis, Celery, and Docker.
 
 ## Features
 
@@ -155,3 +155,16 @@ alembic heads
 The backend includes authentication, role-based permissions, service request management, staff assignment, request status history, and automated tests.
 
 **License:** Add a license before redistributing this project under specific open-source terms.
+
+## SeaweedFS S3 Configuration
+
+For a fresh checkout, create the local S3 configuration before starting
+Docker Compose:
+
+```bash
+cp docker/seaweedfs/s3.example.json docker/seaweedfs/s3.json
+```
+
+Replace the example access key and secret key with your own local credentials.
+The local `docker/seaweedfs/s3.json` file is ignored by Git. Never commit
+real credentials.

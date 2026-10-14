@@ -5,10 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "city-service-management-platform"
 version = "0.1.0"
-description = "A modular monolith backend for city service management"
+description = "A modular monolith backend for civic service operations"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi",
+    "python-multipart",
     "uvicorn[standard]",
     "sqlalchemy",
     "psycopg[binary]",
@@ -20,6 +21,8 @@ dependencies = [
     "PyJWT>=2.10,<3.0",
     "redis>=5,<7",
     "celery[redis]>=5.4,<6",
+    "boto3",
+    "prometheus-client",
 ]
 
 [project.optional-dependencies]
