@@ -6,11 +6,11 @@ from contextlib import suppress
 from typing import Any
 
 import redis.asyncio as redis
-from app.websockets.manager import manager
 from redis.exceptions import RedisError
 
 from app.core.config import settings
 from app.tasks.outbox import OUTBOX_CHANNEL
+from app.websockets.manager import manager
 
 logger = logging.getLogger(__name__)
 
