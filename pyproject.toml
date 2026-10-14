@@ -48,6 +48,8 @@ known-first-party = ["app"]
 [tool.ruff.lint.per-file-ignores]
 "app/api/v1/auth.py" = ["B008"]
 "app/api/v1/health.py" = ["B008"]
+"migrations/env.py" = ["I001"]
+"migrations/versions/*.py" = ["I001"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
