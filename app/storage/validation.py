@@ -10,7 +10,6 @@ class InvalidAttachmentError(ValueError):
     pass
 
 
-# Extension -> (MIME type, signature validator)
 def _is_jpeg(data: bytes) -> bool:
     return data.startswith(b"\xff\xd8\xff")
 
@@ -20,11 +19,7 @@ def _is_png(data: bytes) -> bool:
 
 
 def _is_webp(data: bytes) -> bool:
-    return (
-        len(data) >= 12
-        and data[:4] == b"RIFF"
-        and data[8:12] == b"WEBP"
-    )
+    return len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP"
 
 
 def _is_pdf(data: bytes) -> bool:
@@ -57,10 +52,8 @@ async def validate_attachment(
 
     expected_type, signature_check = allowed
 
-    if upload.content_type != expected_type:
-        raise InvalidAttachmentError(
-            "File extension and content type do not match."
-        )
+    if (upload.content_type or "").lower() != expected_type:
+        raise InvalidAttachmentError("File extension and content type do not match.")
 
     max_size = settings.MAX_ATTACHMENT_SIZE_BYTES
     total_size = 0

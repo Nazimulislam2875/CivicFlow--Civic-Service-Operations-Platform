@@ -32,12 +32,7 @@ def get_current_user(
             raise credentials_error
 
         user_id = int(payload["sub"])
-    except (
-        jwt.InvalidTokenError,
-        KeyError,
-        TypeError,
-        ValueError,
-    ) as exc:
+    except (jwt.InvalidTokenError, KeyError, TypeError, ValueError) as exc:
         raise credentials_error from exc
 
     user = db.get(User, user_id)

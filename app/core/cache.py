@@ -26,6 +26,9 @@ def set_cached_json(
     value: Any,
     ttl: int = SERVICE_REQUEST_LIST_TTL,
 ) -> None:
+    if ttl <= 0:
+        raise ValueError("Cache TTL must be greater than zero")
+
     try:
         redis_client.set(
             key,
@@ -52,6 +55,7 @@ def invalidate_service_request_lists() -> None:
 
         if batch:
             redis_client.delete(*batch)
+
     except (RedisError, OSError):
         logger.warning(
             "Service request cache invalidation failed",

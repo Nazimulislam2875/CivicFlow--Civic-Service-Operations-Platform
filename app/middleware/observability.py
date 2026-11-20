@@ -1,4 +1,5 @@
 import logging
+import re
 import time
 import uuid
 
@@ -21,21 +22,21 @@ HTTP_REQUEST_DURATION = Histogram(
     ["method", "path"],
 )
 
+REQUEST_ID_PATTERN = re.compile(r"^[a-zA-Z0-9._-]{1,128}$")
+
 
 class ObservabilityMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         request_id = request.headers.get("X-Request-ID", "").strip()
 
-        if not request_id or len(request_id) > 128:
+        if not REQUEST_ID_PATTERN.fullmatch(request_id):
             request_id = str(uuid.uuid4())
 
+        request.state.request_id = request_id
         started_at = time.perf_counter()
-        response = None
 
-        # Avoid using query parameters in logs because they can contain secrets.
         try:
             response = await call_next(request)
-            return response
         except Exception:
             logger.exception(
                 "Unhandled request exception",
@@ -46,14 +47,16 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
                 },
             )
             raise
+        else:
+            response.headers["X-Request-ID"] = request_id
+            return response
         finally:
             duration = time.perf_counter() - started_at
-            status_code = response.status_code if response else 500
 
-            # Do not use raw path parameters as labels; that can create
-            # unbounded Prometheus time series.
             route = request.scope.get("route")
             metric_path = getattr(route, "path", request.url.path)
+
+            status_code = response.status_code if "response" in locals() else 500
 
             HTTP_REQUESTS_TOTAL.labels(
                 method=request.method,
@@ -76,6 +79,3 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
                     "duration_seconds": round(duration, 6),
                 },
             )
-
-            if response is not None:
-                response.headers["X-Request-ID"] = request_id

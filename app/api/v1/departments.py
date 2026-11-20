@@ -25,11 +25,7 @@ def get_departments(
     return list_departments(db)
 
 
-@router.post(
-    "",
-    response_model=DepartmentResponse,
-    status_code=status.HTTP_201_CREATED,
-)
+@router.post("", response_model=DepartmentResponse, status_code=status.HTTP_201_CREATED)
 def post_department(
     data: DepartmentCreate,
     db: Annotated[Session, Depends(get_db)],
@@ -39,6 +35,5 @@ def post_department(
         return create_department(db, data)
     except DepartmentAlreadyExistsError as exc:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
+            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
         ) from exc

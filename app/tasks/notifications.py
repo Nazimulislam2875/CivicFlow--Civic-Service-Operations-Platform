@@ -15,15 +15,11 @@ logger = logging.getLogger(__name__)
     retry_kwargs={"max_retries": 3},
 )
 def notify_request_created(
-    request_id: int,
-    citizen_id: int,
-    title: str,
-    recipient_email: str,
+    request_id: int, citizen_id: int, title: str, recipient_email: str
 ) -> dict[str, int | str]:
     if not settings.SMTP_HOST or not settings.SMTP_FROM_EMAIL:
         logger.warning(
-            "Email not sent: SMTP is not configured for request_id=%s",
-            request_id,
+            "Email not sent: SMTP is not configured for request_id=%s", request_id
         )
         return {"status": "skipped", "request_id": request_id}
 
@@ -38,20 +34,12 @@ def notify_request_created(
         "We will keep you updated on its progress."
     )
 
-    with smtplib.SMTP(
-        settings.SMTP_HOST,
-        settings.SMTP_PORT,
-        timeout=15,
-    ) as smtp:
+    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as smtp:
         if settings.SMTP_USE_TLS:
             smtp.starttls()
         if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
             smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
         smtp.send_message(message)
 
-    logger.info(
-        "Email sent: request_id=%s citizen_id=%s",
-        request_id,
-        citizen_id,
-    )
+    logger.info("Email sent: request_id=%s citizen_id=%s", request_id, citizen_id)
     return {"status": "sent", "request_id": request_id}

@@ -28,11 +28,14 @@ def test_register_user_success(monkeypatch):
     result = register_user(db, user_data)
 
     assert isinstance(result, User)
+    assert result.full_name == "Test Citizen"
     assert result.email == "newcitizen@example.com"
     assert result.password_hash == "fake_hashed_password"
+
     db.add.assert_called_once_with(result)
     db.commit.assert_called_once()
     db.refresh.assert_called_once_with(result)
+    db.rollback.assert_not_called()
 
 
 def test_register_user_duplicate_email():
@@ -54,6 +57,8 @@ def test_register_user_duplicate_email():
 
     db.add.assert_not_called()
     db.commit.assert_not_called()
+    db.refresh.assert_not_called()
+    db.rollback.assert_not_called()
 
 
 def test_register_user_rolls_back_on_commit_failure(monkeypatch):
@@ -75,5 +80,7 @@ def test_register_user_rolls_back_on_commit_failure(monkeypatch):
     with pytest.raises(RuntimeError, match="Database failure"):
         register_user(db, user_data)
 
+    db.add.assert_called_once()
+    db.commit.assert_called_once()
     db.rollback.assert_called_once()
     db.refresh.assert_not_called()

@@ -35,3 +35,5 @@ Thumbs.db
 
 # Local SeaweedFS S3 credentials
 /docker/seaweedfs/s3.json
+
+docker-compose.yml.backup

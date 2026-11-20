@@ -1,9 +1,7 @@
-
 import asyncio
 import json
 import logging
 from contextlib import suppress
-from typing import Any
 
 import redis.asyncio as redis
 from redis.exceptions import RedisError
@@ -22,7 +20,6 @@ async def run_redis_subscriber() -> None:
         socket_connect_timeout=3,
         socket_timeout=None,
     )
-
     pubsub = client.pubsub()
 
     try:
@@ -32,8 +29,7 @@ async def run_redis_subscriber() -> None:
         while True:
             try:
                 message = await pubsub.get_message(
-                    ignore_subscribe_messages=True,
-                    timeout=1.0,
+                    ignore_subscribe_messages=True, timeout=1.0
                 )
 
                 if message is None:
@@ -41,7 +37,12 @@ async def run_redis_subscriber() -> None:
                     continue
 
                 try:
-                    event: dict[str, Any] = json.loads(message["data"])
+                    event = json.loads(message["data"])
+
+                    if not isinstance(event, dict):
+                        logger.warning("Ignoring malformed outbox event")
+                        continue
+
                     payload = event.get("payload", {})
                     event_type = event.get("event_type")
                     request_id = event.get("aggregate_id")
@@ -49,6 +50,7 @@ async def run_redis_subscriber() -> None:
                     if (
                         event.get("aggregate_type") != "service_request"
                         or not isinstance(request_id, int)
+                        or isinstance(request_id, bool)
                         or not isinstance(payload, dict)
                         or not isinstance(event_type, str)
                     ):
@@ -71,9 +73,11 @@ async def run_redis_subscriber() -> None:
             except RedisError:
                 logger.exception("Redis subscriber error; reconnecting")
                 await asyncio.sleep(2)
+
                 with suppress(RedisError):
                     await pubsub.unsubscribe(OUTBOX_CHANNEL)
-                await pubsub.close()
+
+                await pubsub.aclose()
                 pubsub = client.pubsub()
                 await pubsub.subscribe(OUTBOX_CHANNEL)
 

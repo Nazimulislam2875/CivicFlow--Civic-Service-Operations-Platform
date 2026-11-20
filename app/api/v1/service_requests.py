@@ -50,8 +50,8 @@ def raise_service_error(exc: Exception) -> None:
         code = status.HTTP_404_NOT_FOUND
     elif isinstance(exc, RequestPermissionError):
         code = status.HTTP_403_FORBIDDEN
-    elif isinstance(exc, CategoryUnavailableError | StaffUnavailableError):
-        code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    elif isinstance(exc, (CategoryUnavailableError, StaffUnavailableError)):
+        code = status.HTTP_422_UNPROCESSABLE_ENTITY
     elif isinstance(exc, InvalidStatusTransitionError):
         code = status.HTTP_409_CONFLICT
     else:
@@ -72,7 +72,7 @@ def post_request(
 ) -> ServiceRequestResponse:
     try:
         request = create_request(db, current_user, data)
-    except CategoryUnavailableError as exc:
+    except (CategoryUnavailableError, RequestPermissionError) as exc:
         raise_service_error(exc)
 
     invalidate_service_request_lists()
@@ -213,7 +213,7 @@ def get_request_detail(
 ) -> ServiceRequestResponse:
     try:
         return get_request(db, request_id, current_user)
-    except RequestNotFoundError as exc:
+    except (RequestNotFoundError, RequestPermissionError) as exc:
         raise_service_error(exc)
 
 

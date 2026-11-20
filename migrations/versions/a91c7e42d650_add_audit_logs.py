@@ -1,4 +1,3 @@
-
 """Add audit logs table."""
 
 import sqlalchemy as sa

@@ -1,6 +1,11 @@
+import logging
+
 import redis
+from redis.exceptions import RedisError
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 redis_client = redis.Redis.from_url(
     settings.REDIS_URL,
@@ -11,4 +16,8 @@ redis_client = redis.Redis.from_url(
 
 
 def check_redis_connection() -> bool:
-    return bool(redis_client.ping())
+    try:
+        return bool(redis_client.ping())
+    except (RedisError, OSError):
+        logger.warning("Redis connection check failed", exc_info=True)
+        return False

@@ -18,12 +18,16 @@ def client():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+
     testing_session = sessionmaker(
         bind=engine,
         autoflush=False,
         expire_on_commit=False,
     )
+
     Base.metadata.create_all(bind=engine)
+
+    previous_overrides = fastapi_app.dependency_overrides.copy()
 
     def override_get_db():
         db = testing_session()
@@ -34,12 +38,15 @@ def client():
 
     fastapi_app.dependency_overrides[get_db] = override_get_db
 
-    with TestClient(fastapi_app) as test_client:
-        yield test_client
+    try:
+        with TestClient(fastapi_app) as test_client:
+            yield test_client
+    finally:
+        fastapi_app.dependency_overrides.clear()
+        fastapi_app.dependency_overrides.update(previous_overrides)
 
-    fastapi_app.dependency_overrides.clear()
-    Base.metadata.drop_all(bind=engine)
-    engine.dispose()
+        Base.metadata.drop_all(bind=engine)
+        engine.dispose()
 
 
 def set_user_role(role: str):
@@ -107,6 +114,7 @@ def test_admin_can_update_category(client: TestClient):
     assert created.status_code == 201, created.text
 
     category_id = created.json()["id"]
+
     response = client.patch(
         f"/api/v1/categories/{category_id}",
         json={"name": "Water Services"},

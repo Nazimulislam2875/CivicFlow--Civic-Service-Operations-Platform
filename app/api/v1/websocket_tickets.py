@@ -1,10 +1,10 @@
-
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from app.api.deps import get_current_user
+from app.models.user import User
 from app.services.websocket_tickets import (
     WebSocketTicketError,
     create_websocket_ticket,
@@ -18,12 +18,9 @@ class WebSocketTicketResponse(BaseModel):
     expires_in: int = 60
 
 
-@router.post(
-    "/websocket-tickets",
-    response_model=WebSocketTicketResponse,
-)
+@router.post("/websocket-tickets", response_model=WebSocketTicketResponse)
 def issue_websocket_ticket(
-    current_user: Annotated[object, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_user)],
 ) -> WebSocketTicketResponse:
     try:
         ticket = create_websocket_ticket(current_user.id)

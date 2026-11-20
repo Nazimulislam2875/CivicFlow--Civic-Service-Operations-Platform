@@ -6,7 +6,4 @@ router = APIRouter(tags=["Monitoring"])
 
 @router.get("/metrics", include_in_schema=False)
 def metrics() -> Response:
-    return Response(
-        content=generate_latest(),
-        media_type=CONTENT_TYPE_LATEST,
-    )
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)

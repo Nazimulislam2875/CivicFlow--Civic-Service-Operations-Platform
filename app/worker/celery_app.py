@@ -6,7 +6,10 @@ celery_app = Celery(
     "city_service",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
-    include=["app.tasks.notifications"],
+    include=[
+        "app.tasks.notifications",
+        "app.tasks.outbox",
+    ],
 )
 
 celery_app.conf.update(

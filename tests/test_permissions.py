@@ -19,6 +19,7 @@ def citizen() -> User:
 
 def test_allowed_role_is_accepted(citizen: User):
     checker = require_roles("CITIZEN")
+
     assert checker(current_user=citizen) is citizen
 
 
@@ -33,6 +34,7 @@ def test_disallowed_role_is_rejected(citizen: User):
 
 def test_multiple_roles_are_supported(citizen: User):
     checker = require_roles("STAFF", "CITIZEN")
+
     assert checker(current_user=citizen) is citizen
 
 

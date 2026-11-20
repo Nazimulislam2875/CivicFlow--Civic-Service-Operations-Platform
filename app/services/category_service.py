@@ -16,14 +16,14 @@ class CategoryNotFoundError(Exception):
 
 def create_category(db: Session, data: CategoryCreate) -> ServiceCategory:
     name = data.name.strip()
-
     existing = db.scalar(select(ServiceCategory).where(ServiceCategory.name == name))
+
     if existing:
         raise CategoryAlreadyExistsError("Category already exists")
 
     category = ServiceCategory(
         name=name,
-        description=data.description,
+        description=data.description.strip() if data.description else None,
     )
 
     try:
@@ -45,13 +45,12 @@ def list_categories(db: Session) -> list[ServiceCategory]:
         .where(ServiceCategory.is_active.is_(True))
         .order_by(ServiceCategory.name)
     )
+
     return list(db.scalars(statement).all())
 
 
 def update_category(
-    db: Session,
-    category_id: int,
-    data: CategoryUpdate,
+    db: Session, category_id: int, data: CategoryUpdate
 ) -> ServiceCategory:
     category = db.get(ServiceCategory, category_id)
 
@@ -69,8 +68,12 @@ def update_category(
                 ServiceCategory.id != category_id,
             )
         )
+
         if existing:
             raise CategoryAlreadyExistsError("Category already exists")
+
+    if "description" in updates and updates["description"] is not None:
+        updates["description"] = updates["description"].strip()
 
     for field, value in updates.items():
         setattr(category, field, value)
@@ -93,6 +96,9 @@ def delete_category(db: Session, category_id: int) -> None:
     if category is None:
         raise CategoryNotFoundError("Category not found")
 
-    category.is_active = False
-
-    db.commit()
+    try:
+        category.is_active = False
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise

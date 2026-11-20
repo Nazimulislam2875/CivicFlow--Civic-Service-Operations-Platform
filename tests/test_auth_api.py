@@ -1,4 +1,3 @@
-
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
@@ -27,6 +26,14 @@ def client():
     )
 
     Base.metadata.create_all(bind=engine)
+
+    previous_overrides = fastapi_app.dependency_overrides.copy()
+    previous_testing_session = getattr(
+        fastapi_app.state,
+        "testing_session",
+        None,
+    )
+
     fastapi_app.state.testing_session = testing_session
 
     def override_get_db():
@@ -43,7 +50,14 @@ def client():
             yield test_client
     finally:
         fastapi_app.dependency_overrides.clear()
-        del fastapi_app.state.testing_session
+        fastapi_app.dependency_overrides.update(previous_overrides)
+
+        if previous_testing_session is None:
+            if hasattr(fastapi_app.state, "testing_session"):
+                del fastapi_app.state.testing_session
+        else:
+            fastapi_app.state.testing_session = previous_testing_session
+
         Base.metadata.drop_all(bind=engine)
         engine.dispose()
 

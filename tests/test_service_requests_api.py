@@ -408,6 +408,11 @@ def test_creating_service_request_invalidates_list_cache(client, monkeypatch):
     )
 
     category_id = create_category(test_client)
+
+    # Category creation sets the current role to ADMIN.
+    # Service request creation requires the CITIZEN role.
+    set_user_role("CITIZEN")
+
     response = test_client.post(
         "/api/v1/service-requests",
         json={

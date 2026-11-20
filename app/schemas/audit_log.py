@@ -1,4 +1,3 @@
-
 from datetime import datetime
 from typing import Any
 
@@ -9,10 +8,10 @@ class AuditLogRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    actor_id: int | None
+    actor_id: int
     action: str
     resource_type: str
-    resource_id: int | None
+    resource_id: int
     old_values: dict[str, Any] | None
     new_values: dict[str, Any] | None
     ip_address: str | None

@@ -14,11 +14,15 @@ VALID_ROLES = {
 
 
 def require_roles(*allowed_roles: str) -> Callable[..., User]:
-    if not allowed_roles or not set(allowed_roles) <= VALID_ROLES:
+    normalized_roles = {role.upper() for role in allowed_roles}
+
+    if not normalized_roles or not normalized_roles <= VALID_ROLES:
         raise ValueError("Invalid or missing roles")
 
     def role_checker(current_user: CurrentUser) -> User:
-        if current_user.role not in allowed_roles:
+        user_role = getattr(current_user.role, "value", current_user.role)
+
+        if str(user_role).upper() not in normalized_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You do not have permission to access this resource",

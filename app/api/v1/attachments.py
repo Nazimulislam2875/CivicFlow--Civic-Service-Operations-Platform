@@ -1,16 +1,7 @@
-
 import logging
 from pathlib import PurePosixPath
-from typing import Annotated
 
-from fastapi import (
-    APIRouter,
-    Depends,
-    File,
-    HTTPException,
-    UploadFile,
-    status,
-)
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -18,6 +9,7 @@ from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.attachment import Attachment
 from app.models.service_request import ServiceRequest
+from app.models.user import User
 from app.schemas.attachment import AttachmentDownload, AttachmentRead
 from app.services.audit_logs import record_audit_event
 from app.storage.object_storage import (
@@ -27,46 +19,32 @@ from app.storage.object_storage import (
     ensure_bucket_exists,
     upload_object,
 )
-from app.storage.validation import (
-    InvalidAttachmentError,
-    validate_attachment,
-)
+from app.storage.validation import InvalidAttachmentError, validate_attachment
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/service-requests", tags=["Attachments"])
 
 
-def _role_name(user: object) -> str:
-    role = getattr(user, "role", "")
+def _role_name(user: User) -> str:
+    role = user.role
     return str(getattr(role, "value", role)).upper()
 
 
-def _can_access_request(
-    user: object,
-    service_request: ServiceRequest,
-) -> bool:
+def _can_access_request(user: User, service_request: ServiceRequest) -> bool:
     role = _role_name(user)
 
-    if role == "ADMIN":
+    if role in ("ADMIN", "SUPERVISOR"):
         return True
-
     if role == "CITIZEN":
-        return getattr(service_request, "citizen_id", None) == user.id
-
+        return service_request.citizen_id == user.id
     if role == "STAFF":
-        return getattr(service_request, "assigned_staff_id", None) == user.id
-
-    if role == "SUPERVISOR":
-        return True
+        return service_request.assigned_staff_id == user.id
 
     return False
 
 
-def _get_request_or_404(
-    db: Session,
-    request_id: int,
-) -> ServiceRequest:
+def _get_request_or_404(db: Session, request_id: int) -> ServiceRequest:
     service_request = db.get(ServiceRequest, request_id)
 
     if service_request is None:
@@ -85,9 +63,9 @@ def _get_request_or_404(
 )
 async def upload_attachment(
     request_id: int,
-    db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[object, Depends(get_current_user)],
-    upload: Annotated[UploadFile, File(...)],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    upload: UploadFile = File(...),
 ) -> Attachment:
     try:
         service_request = _get_request_or_404(db, request_id)
@@ -109,16 +87,15 @@ async def upload_attachment(
         original_filename = PurePosixPath(
             (upload.filename or "").replace("\\", "/")
         ).name[:255]
-
         object_uploaded = False
 
         try:
-            # Measure the file before passing its handle to object storage.
-            # The storage adapter may close the supplied file object.
             upload.file.seek(0)
             size_bytes = 0
+
             while chunk := upload.file.read(1024 * 1024):
                 size_bytes += len(chunk)
+
             upload.file.seek(0)
 
             ensure_bucket_exists()
@@ -138,12 +115,14 @@ async def upload_attachment(
                 size_bytes=size_bytes,
             )
             db.add(attachment)
+            db.flush()
 
             record_audit_event(
                 db,
                 actor_id=current_user.id,
                 action="attachment.uploaded",
                 resource_type="attachment",
+                resource_id=attachment.id,
                 new_values={
                     "service_request_id": request_id,
                     "content_type": content_type,
@@ -185,8 +164,8 @@ async def upload_attachment(
 )
 def list_attachments(
     request_id: int,
-    db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[object, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> list[Attachment]:
     service_request = _get_request_or_404(db, request_id)
 
@@ -200,10 +179,7 @@ def list_attachments(
         db.scalars(
             select(Attachment)
             .where(Attachment.service_request_id == request_id)
-            .order_by(
-                Attachment.created_at.desc(),
-                Attachment.id.desc(),
-            )
+            .order_by(Attachment.created_at.desc(), Attachment.id.desc())
         ).all()
     )
 
@@ -215,8 +191,8 @@ def list_attachments(
 def get_attachment_download_url(
     request_id: int,
     attachment_id: int,
-    db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[object, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> AttachmentDownload:
     service_request = _get_request_or_404(db, request_id)
 
@@ -248,10 +224,7 @@ def get_attachment_download_url(
             detail="Attachment storage is unavailable",
         ) from exc
 
-    return AttachmentDownload(
-        attachment=attachment,
-        download_url=url,
-    )
+    return AttachmentDownload(attachment=attachment, download_url=url)
 
 
 @router.delete(
@@ -261,8 +234,8 @@ def get_attachment_download_url(
 def remove_attachment(
     request_id: int,
     attachment_id: int,
-    db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[object, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> None:
     _get_request_or_404(db, request_id)
 

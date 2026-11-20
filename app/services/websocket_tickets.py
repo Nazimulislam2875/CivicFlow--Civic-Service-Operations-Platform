@@ -1,4 +1,3 @@
-
 import secrets
 
 from redis import Redis
@@ -27,16 +26,11 @@ def create_websocket_ticket(user_id: int) -> str:
 
     try:
         with _get_redis() as redis:
-            redis.set(
-                key,
-                str(user_id),
-                ex=60,
-                nx=True,
-            )
+            created = redis.set(key, str(user_id), ex=60, nx=True)
+            if not created:
+                raise WebSocketTicketError("Failed to create WebSocket ticket")
     except RedisError as exc:
-        raise WebSocketTicketError(
-            "WebSocket ticket service is unavailable"
-        ) from exc
+        raise WebSocketTicketError("WebSocket ticket service is unavailable") from exc
 
     return ticket
 
@@ -48,15 +42,9 @@ def consume_websocket_ticket(ticket: str) -> int | None:
 
     try:
         with _get_redis() as redis:
-            # GETDEL requires Redis 6.2 or newer.
-            value = redis.execute_command(
-                "GETDEL",
-                f"ws-ticket:{ticket}",
-            )
+            value = redis.execute_command("GETDEL", f"ws-ticket:{ticket}")
     except RedisError as exc:
-        raise WebSocketTicketError(
-            "WebSocket ticket service is unavailable"
-        ) from exc
+        raise WebSocketTicketError("WebSocket ticket service is unavailable") from exc
 
     if value is None:
         return None

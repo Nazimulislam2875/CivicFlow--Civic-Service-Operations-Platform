@@ -1,5 +1,6 @@
-
 import smtplib
+
+import pytest
 
 from app.core.config import settings
 from app.tasks.notifications import notify_request_created
@@ -42,17 +43,16 @@ def test_notification_propagates_smtp_failure(monkeypatch):
 
     monkeypatch.setattr(smtplib, "SMTP", FailingSMTP)
 
-    try:
+    with pytest.raises(
+        smtplib.SMTPException,
+        match="Simulated delivery failure",
+    ):
         notify_request_created.run(
             request_id=12,
             citizen_id=3,
             title="Repair broken road",
             recipient_email="citizen@example.com",
         )
-    except smtplib.SMTPException as exc:
-        assert str(exc) == "Simulated delivery failure"
-    else:
-        raise AssertionError("SMTP failure should propagate from the task")
 
 
 def test_notification_sends_email(monkeypatch):

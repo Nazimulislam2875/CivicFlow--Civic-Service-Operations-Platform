@@ -18,15 +18,19 @@ def client():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    TestingSession = sessionmaker(
+
+    testing_session = sessionmaker(
         bind=engine,
         autoflush=False,
         expire_on_commit=False,
     )
+
     Base.metadata.create_all(bind=engine)
 
+    previous_overrides = fastapi_app.dependency_overrides.copy()
+
     def override_get_db():
-        db = TestingSession()
+        db = testing_session()
         try:
             yield db
         finally:
@@ -34,12 +38,15 @@ def client():
 
     fastapi_app.dependency_overrides[get_db] = override_get_db
 
-    with TestClient(fastapi_app) as test_client:
-        yield test_client
+    try:
+        with TestClient(fastapi_app) as test_client:
+            yield test_client
+    finally:
+        fastapi_app.dependency_overrides.clear()
+        fastapi_app.dependency_overrides.update(previous_overrides)
 
-    fastapi_app.dependency_overrides.clear()
-    Base.metadata.drop_all(bind=engine)
-    engine.dispose()
+        Base.metadata.drop_all(bind=engine)
+        engine.dispose()
 
 
 def set_user_role(role: str):
@@ -55,6 +62,7 @@ def set_user_role(role: str):
 
 def test_department_list_requires_authentication(client: TestClient):
     response = client.get("/api/v1/departments")
+
     assert response.status_code == 401
 
 

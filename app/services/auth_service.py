@@ -31,33 +31,16 @@ def _issue_tokens(db: Session, user: User) -> TokenResponse:
     access_token = create_access_token(user.id)
     refresh_token, jti, expires_at = create_refresh_token(user.id)
 
-    db.add(
-        RefreshToken(
-            jti=jti,
-            user_id=user.id,
-            expires_at=expires_at,
-        )
-    )
+    db.add(RefreshToken(jti=jti, user_id=user.id, expires_at=expires_at))
 
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-    )
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
-def login_user(
-    db: Session,
-    email: str,
-    password: str,
-) -> TokenResponse:
+def login_user(db: Session, email: str, password: str) -> TokenResponse:
     normalized_email = email.strip().lower()
-
     user = db.scalar(select(User).where(User.email == normalized_email))
 
-    if user is None or not verify_password(
-        password,
-        user.password_hash,
-    ):
+    if user is None or not verify_password(password, user.password_hash):
         raise InvalidCredentialsError("Invalid email or password")
 
     if not user.is_active:
@@ -72,10 +55,7 @@ def login_user(
         raise
 
 
-def refresh_user_tokens(
-    db: Session,
-    refresh_token: str,
-) -> TokenResponse:
+def refresh_user_tokens(db: Session, refresh_token: str) -> TokenResponse:
     try:
         payload = decode_token(refresh_token)
 
@@ -83,14 +63,12 @@ def refresh_user_tokens(
             raise InvalidRefreshTokenError("Invalid refresh token")
 
         user_id = int(payload["sub"])
-        jti = payload["jti"]
+        jti = payload.get("jti")
 
-    except (
-        jwt.InvalidTokenError,
-        KeyError,
-        TypeError,
-        ValueError,
-    ) as exc:
+        if not isinstance(jti, str) or not jti:
+            raise InvalidRefreshTokenError("Invalid refresh token")
+
+    except (jwt.InvalidTokenError, KeyError, TypeError, ValueError) as exc:
         raise InvalidRefreshTokenError("Invalid or expired refresh token") from exc
 
     try:
@@ -124,7 +102,6 @@ def refresh_user_tokens(
         stored_token.revoked_at = now
         tokens = _issue_tokens(db, user)
         db.commit()
-
         return tokens
 
     except InvalidRefreshTokenError:

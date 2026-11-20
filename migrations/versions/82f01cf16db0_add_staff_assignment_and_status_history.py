@@ -1,4 +1,3 @@
-
 """Add staff assignment and status history.
 
 Revision ID: 82f01cf16db0

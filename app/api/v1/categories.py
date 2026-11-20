@@ -28,11 +28,7 @@ def get_categories(
     return list_categories(db)
 
 
-@router.post(
-    "",
-    response_model=CategoryResponse,
-    status_code=status.HTTP_201_CREATED,
-)
+@router.post("", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
 def post_category(
     data: CategoryCreate,
     db: Annotated[Session, Depends(get_db)],
@@ -42,8 +38,7 @@ def post_category(
         return create_category(db, data)
     except CategoryAlreadyExistsError as exc:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
+            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
         ) from exc
 
 
@@ -58,20 +53,15 @@ def patch_category(
         return update_category(db, category_id, data)
     except CategoryNotFoundError as exc:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
         ) from exc
     except CategoryAlreadyExistsError as exc:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
+            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
         ) from exc
 
 
-@router.delete(
-    "/{category_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-)
+@router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
 def remove_category(
     category_id: int,
     db: Annotated[Session, Depends(get_db)],
@@ -81,6 +71,5 @@ def remove_category(
         delete_category(db, category_id)
     except CategoryNotFoundError as exc:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
         ) from exc

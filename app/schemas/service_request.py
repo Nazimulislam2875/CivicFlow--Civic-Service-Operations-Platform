@@ -1,4 +1,3 @@
-
 from datetime import datetime
 from typing import Literal
 
@@ -13,7 +12,7 @@ class ServiceRequestCreate(BaseModel):
     description: str = Field(min_length=5)
     category_id: int = Field(gt=0)
     priority: RequestPriority = "MEDIUM"
-    location: str | None = Field(default=None, max_length=300)
+    location: str = Field(min_length=3, max_length=300)
 
 
 class ServiceRequestUpdate(BaseModel):

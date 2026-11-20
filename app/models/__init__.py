@@ -1,4 +1,3 @@
-
 from app.models.attachment import Attachment
 from app.models.department import Department
 from app.models.refresh_token import RefreshToken

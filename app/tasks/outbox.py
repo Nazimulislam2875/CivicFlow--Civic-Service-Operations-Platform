@@ -1,4 +1,3 @@
-
 import json
 import logging
 from datetime import UTC, datetime
@@ -57,17 +56,13 @@ def publish_pending_events(self) -> dict[str, int]:
                         "aggregate_type": event.aggregate_type,
                         "aggregate_id": event.aggregate_id,
                         "payload": event.payload,
-                        "created_at": (
-                            event.created_at.isoformat()
-                            if event.created_at
-                            else None
-                        ),
+                        "created_at": event.created_at.isoformat()
+                        if event.created_at
+                        else None,
                     }
 
-                    # PUBLISH returns the number of current subscribers.
                     subscriber_count = client.publish(
-                        OUTBOX_CHANNEL,
-                        json.dumps(message),
+                        OUTBOX_CHANNEL, json.dumps(message)
                     )
 
                     if subscriber_count == 0:
@@ -84,7 +79,6 @@ def publish_pending_events(self) -> dict[str, int]:
                     event.attempts += 1
                     event.last_error = str(exc)[:500]
                     failed += 1
-
                     logger.exception(
                         "Outbox event publish failed",
                         extra={"outbox_event_id": event.id},

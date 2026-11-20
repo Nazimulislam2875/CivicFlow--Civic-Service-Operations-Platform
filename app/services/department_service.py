@@ -10,12 +10,8 @@ class DepartmentAlreadyExistsError(Exception):
     pass
 
 
-def create_department(
-    db: Session,
-    data: DepartmentCreate,
-) -> Department:
+def create_department(db: Session, data: DepartmentCreate) -> Department:
     name = data.name.strip()
-
     existing = db.scalar(select(Department).where(Department.name == name))
 
     if existing:
@@ -23,7 +19,7 @@ def create_department(
 
     department = Department(
         name=name,
-        description=data.description,
+        description=data.description.strip() if data.description else None,
     )
 
     try:
@@ -40,10 +36,10 @@ def create_department(
 
 
 def list_departments(db: Session) -> list[Department]:
-    return list(
-        db.scalars(
-            select(Department)
-            .where(Department.is_active.is_(True))
-            .order_by(Department.name)
-        ).all()
+    statement = (
+        select(Department)
+        .where(Department.is_active.is_(True))
+        .order_by(Department.name)
     )
+
+    return list(db.scalars(statement).all())

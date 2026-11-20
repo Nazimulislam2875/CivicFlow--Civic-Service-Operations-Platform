@@ -16,46 +16,27 @@ from app.services.auth_service import (
     login_user,
     refresh_user_tokens,
 )
-from app.services.user_service import (
-    EmailAlreadyRegisteredError,
-    register_user,
-)
+from app.services.user_service import EmailAlreadyRegisteredError, register_user
 
 router = APIRouter()
 
 
 @router.post(
-    "/register",
-    response_model=UserResponse,
-    status_code=status.HTTP_201_CREATED,
+    "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
 )
-def register(
-    user_data: UserCreate,
-    db: Session = Depends(get_db),
-) -> UserResponse:
+def register(user_data: UserCreate, db: Session = Depends(get_db)) -> UserResponse:
     try:
         return register_user(db, user_data)
     except EmailAlreadyRegisteredError as exc:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
+            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
         ) from exc
 
 
-@router.post(
-    "/login",
-    response_model=TokenResponse,
-)
-def login(
-    credentials: LoginRequest,
-    db: Session = Depends(get_db),
-) -> TokenResponse:
+@router.post("/login", response_model=TokenResponse)
+def login(credentials: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
     try:
-        return login_user(
-            db,
-            str(credentials.email),
-            credentials.password,
-        )
+        return login_user(db, str(credentials.email), credentials.password)
     except InvalidCredentialsError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -64,19 +45,12 @@ def login(
         ) from exc
     except InactiveUserError as exc:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(exc),
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)
         ) from exc
 
 
-@router.post(
-    "/refresh",
-    response_model=TokenResponse,
-)
-def refresh(
-    request: RefreshRequest,
-    db: Session = Depends(get_db),
-) -> TokenResponse:
+@router.post("/refresh", response_model=TokenResponse)
+def refresh(request: RefreshRequest, db: Session = Depends(get_db)) -> TokenResponse:
     try:
         return refresh_user_tokens(db, request.refresh_token)
     except InvalidRefreshTokenError as exc:
@@ -93,12 +67,7 @@ def get_my_profile(current_user: CurrentUser) -> UserResponse:
 
 
 @router.get("/admin-check")
-def admin_check(
-    current_user: Annotated[
-        User,
-        Depends(require_roles("ADMIN")),
-    ],
-):
+def admin_check(current_user: Annotated[User, Depends(require_roles("ADMIN"))]):
     return {
         "message": "Admin access granted",
         "user_id": current_user.id,

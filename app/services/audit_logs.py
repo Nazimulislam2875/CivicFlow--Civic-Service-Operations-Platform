@@ -1,4 +1,3 @@
-
 import logging
 from typing import Any
 
@@ -13,10 +12,10 @@ logger = logging.getLogger(__name__)
 def record_audit_event(
     db: Session,
     *,
-    actor_id: int | None,
+    actor_id: int,
     action: str,
     resource_type: str,
-    resource_id: int | None = None,
+    resource_id: int,
     old_values: dict[str, Any] | None = None,
     new_values: dict[str, Any] | None = None,
     ip_address: str | None = None,
@@ -75,9 +74,7 @@ def list_audit_events(
     if resource_id is not None:
         filters.append(AuditLog.resource_id == resource_id)
 
-    total = db.scalar(
-        select(func.count()).select_from(AuditLog).where(*filters)
-    ) or 0
+    total = db.scalar(select(func.count()).select_from(AuditLog).where(*filters)) or 0
 
     statement = (
         select(AuditLog)
@@ -87,5 +84,4 @@ def list_audit_events(
         .offset(offset)
     )
 
-    items = list(db.scalars(statement).all())
-    return items, total
+    return list(db.scalars(statement).all()), total

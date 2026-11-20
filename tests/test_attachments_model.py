@@ -1,4 +1,3 @@
-
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
@@ -72,21 +71,3 @@ def test_attachment_object_key_must_be_unique(db):
         db.commit()
 
     db.rollback()
-
-
-def test_attachment_rejects_zero_size(db):
-    attachment = Attachment(
-        service_request_id=1,
-        uploaded_by_id=7,
-        original_filename="empty.pdf",
-        object_key="attachments/empty.pdf",
-        content_type="application/pdf",
-        size_bytes=0,
-    )
-    db.add(attachment)
-
-    # SQLite create_all() uses model metadata, which does not currently
-    # declare the migration's CHECK constraint. This test checks the
-    # model-level value only; PostgreSQL migration testing will verify
-    # the database constraint.
-    assert attachment.size_bytes == 0

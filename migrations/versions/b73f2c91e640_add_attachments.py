@@ -1,4 +1,3 @@
-
 """Add attachment metadata table."""
 
 import sqlalchemy as sa

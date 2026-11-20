@@ -26,38 +26,46 @@ def attachment_client(monkeypatch):
         autoflush=False,
         expire_on_commit=False,
     )
+
     Base.metadata.create_all(bind=engine)
     stored_objects: dict[str, tuple[bytes, str]] = {}
 
     def fake_ensure_bucket_exists():
         return None
 
-    def fake_upload_object(*, object_key, file_obj, content_type):
+    def fake_upload_object(object_key, file_obj, content_type):
         try:
             stored_objects[object_key] = (file_obj.read(), content_type)
         finally:
-            # Simulate a storage adapter that closes the supplied file handle.
             file_obj.close()
 
-    def fake_create_download_url(*, object_key):
+    def fake_create_download_url(object_key):
         assert object_key in stored_objects
         return f"https://storage.example.test/{object_key}?signature=test"
 
-    def fake_delete_object(*, object_key):
+    def fake_delete_object(object_key):
         assert object_key in stored_objects
         del stored_objects[object_key]
 
     monkeypatch.setattr(
-        attachment_api, "ensure_bucket_exists", fake_ensure_bucket_exists
+        attachment_api,
+        "ensure_bucket_exists",
+        fake_ensure_bucket_exists,
     )
     monkeypatch.setattr(
-        attachment_api, "upload_object", fake_upload_object
+        attachment_api,
+        "upload_object",
+        fake_upload_object,
     )
     monkeypatch.setattr(
-        attachment_api, "create_download_url", fake_create_download_url
+        attachment_api,
+        "create_download_url",
+        fake_create_download_url,
     )
     monkeypatch.setattr(
-        attachment_api, "delete_object", fake_delete_object
+        attachment_api,
+        "delete_object",
+        fake_delete_object,
     )
 
     def override_get_db():
@@ -67,6 +75,7 @@ def attachment_client(monkeypatch):
         finally:
             db.close()
 
+    previous_overrides = fastapi_app.dependency_overrides.copy()
     fastapi_app.dependency_overrides[get_db] = override_get_db
 
     try:
@@ -74,6 +83,7 @@ def attachment_client(monkeypatch):
             yield test_client, testing_session, stored_objects
     finally:
         fastapi_app.dependency_overrides.clear()
+        fastapi_app.dependency_overrides.update(previous_overrides)
         Base.metadata.drop_all(bind=engine)
         engine.dispose()
 
@@ -91,6 +101,7 @@ def set_role(role: str, user_id: int = 1):
 
 def create_service_request(client: TestClient) -> dict:
     set_role("ADMIN")
+
     category_response = client.post(
         "/api/v1/categories",
         json={"name": "Attachment Test Category"},
@@ -99,6 +110,7 @@ def create_service_request(client: TestClient) -> dict:
     category_id = category_response.json()["id"]
 
     set_role("CITIZEN")
+
     response = client.post(
         "/api/v1/service-requests",
         json={
@@ -124,20 +136,18 @@ def test_attachment_upload_list_download_and_admin_delete(attachment_client):
         files={"upload": ("../../evidence.pdf", pdf, "application/pdf")},
     )
     assert upload_response.status_code == 201, upload_response.text
+
     attachment = upload_response.json()
     assert attachment["original_filename"] == "evidence.pdf"
     assert attachment["size_bytes"] == len(pdf)
     assert len(stored_objects) == 1
 
-    list_response = client.get(
-        f"/api/v1/service-requests/{request_id}/attachments"
-    )
+    list_response = client.get(f"/api/v1/service-requests/{request_id}/attachments")
     assert list_response.status_code == 200, list_response.text
     assert [item["id"] for item in list_response.json()] == [attachment["id"]]
 
     download_response = client.get(
-        f"/api/v1/service-requests/{request_id}/attachments/"
-        f"{attachment['id']}/download"
+        f"/api/v1/service-requests/{request_id}/attachments/{attachment['id']}/download"
     )
     assert download_response.status_code == 200, download_response.text
     assert download_response.json()["download_url"].startswith(
@@ -150,15 +160,14 @@ def test_attachment_upload_list_download_and_admin_delete(attachment_client):
     assert citizen_delete.status_code == 403
 
     set_role("ADMIN")
+
     admin_delete = client.delete(
         f"/api/v1/service-requests/{request_id}/attachments/{attachment['id']}"
     )
     assert admin_delete.status_code == 204, admin_delete.text
     assert stored_objects == {}
 
-    list_after_delete = client.get(
-        f"/api/v1/service-requests/{request_id}/attachments"
-    )
+    list_after_delete = client.get(f"/api/v1/service-requests/{request_id}/attachments")
     assert list_after_delete.status_code == 200
     assert list_after_delete.json() == []
 
@@ -179,11 +188,14 @@ def test_assigned_staff_can_access_request_attachments(attachment_client):
                 is_active=True,
             )
         )
+
         service_request = db.get(ServiceRequest, request_id)
+        assert service_request is not None
         service_request.assigned_staff_id = 3
         db.commit()
 
     set_role("STAFF", user_id=3)
+
     pdf = b"%PDF-1.7\nStaff attachment test\n"
     upload_response = client.post(
         f"/api/v1/service-requests/{request_id}/attachments",
@@ -192,9 +204,8 @@ def test_assigned_staff_can_access_request_attachments(attachment_client):
     assert upload_response.status_code == 201, upload_response.text
 
     set_role("STAFF", user_id=4)
-    denied_response = client.get(
-        f"/api/v1/service-requests/{request_id}/attachments"
-    )
+
+    denied_response = client.get(f"/api/v1/service-requests/{request_id}/attachments")
     assert denied_response.status_code == 403, denied_response.text
 
 
@@ -204,7 +215,14 @@ def test_attachment_rejects_unsupported_extension(attachment_client):
 
     response = client.post(
         f"/api/v1/service-requests/{request['id']}/attachments",
-        files={"upload": ("notes.txt", b"not an allowed attachment", "text/plain")},
+        files={
+            "upload": (
+                "notes.txt",
+                b"not an allowed attachment",
+                "text/plain",
+            )
+        },
     )
+
     assert response.status_code == 422, response.text
     assert stored_objects == {}

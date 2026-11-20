@@ -16,10 +16,14 @@ def _is_email_unique_violation(exc: IntegrityError) -> bool:
     diagnostic = getattr(original, "diag", None)
     constraint_name = getattr(diagnostic, "constraint_name", None)
 
-    return constraint_name in {
-        "ix_users_email",
-        "users_email_key",
-    }
+    if constraint_name in {"ix_users_email", "users_email_key"}:
+        return True
+
+    error_message = str(original).lower()
+
+    return "users.email" in error_message and (
+        "unique" in error_message or "duplicate" in error_message
+    )
 
 
 def register_user(db: Session, user_data: UserCreate) -> User:

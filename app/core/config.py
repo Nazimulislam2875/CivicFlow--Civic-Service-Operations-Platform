@@ -8,8 +8,10 @@ class Settings(BaseSettings):
 
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=15, gt=0)
     REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=7, gt=0)
-    JWT_ALGORITHM: str = "HS256"
+    JWT_ALGORITHM: str = Field(default="HS256", pattern="^HS256$")
+
     REDIS_URL: str = "redis://localhost:6379/0"
+
     SMTP_HOST: str | None = None
     SMTP_PORT: int = Field(default=587, gt=0)
     SMTP_USERNAME: str | None = None
@@ -22,11 +24,7 @@ class Settings(BaseSettings):
     S3_ACCESS_KEY_ID: str = "cityservice-dev"
     S3_SECRET_ACCESS_KEY: str = "cityservice-dev-secret"
     S3_REGION: str = "us-east-1"
-    S3_PRESIGNED_URL_EXPIRES_SECONDS: int = Field(
-        default=300,
-        gt=0,
-    )
-
+    S3_PRESIGNED_URL_EXPIRES_SECONDS: int = Field(default=300, gt=0)
 
     MAX_ATTACHMENT_SIZE_BYTES: int = Field(default=10 * 1024 * 1024, gt=0)
 

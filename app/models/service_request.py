@@ -1,4 +1,3 @@
-
 from datetime import datetime
 from typing import ClassVar
 
@@ -58,7 +57,7 @@ class ServiceRequest(Base):
         index=True,
     )
 
-    location: Mapped[str | None] = mapped_column(String(300))
+    location: Mapped[str] = mapped_column(String(300), nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

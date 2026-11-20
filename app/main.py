@@ -1,4 +1,3 @@
-
 import asyncio
 from contextlib import asynccontextmanager, suppress
 
@@ -36,39 +35,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.include_router(health_router, prefix="/api/v1", tags=["Health"])
+app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(
-    health_router,
-    prefix="/api/v1",
-    tags=["Health"],
+    departments_router, prefix="/api/v1/departments", tags=["Departments"]
 )
-
-app.include_router(
-    auth_router,
-    prefix="/api/v1/auth",
-    tags=["Authentication"],
-)
-
-app.include_router(
-    departments_router,
-    prefix="/api/v1/departments",
-    tags=["Departments"],
-)
-
-app.include_router(
-    categories_router,
-    prefix="/api/v1/categories",
-    tags=["Categories"],
-)
-
+app.include_router(categories_router, prefix="/api/v1/categories", tags=["Categories"])
 app.include_router(
     service_requests_router,
     prefix="/api/v1/service-requests",
     tags=["Service Requests"],
 )
-
-app.include_router(
-    attachments_router,
-    prefix="/api/v1",
-)
+app.include_router(attachments_router, prefix="/api/v1")
 
 app.add_middleware(ObservabilityMiddleware)
